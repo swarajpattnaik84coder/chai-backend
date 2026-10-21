@@ -254,4 +254,53 @@ const refreshAccessToken = asyncHandler(async (req,res) => {
 })
     
 
-export {registerUser, loginUser, logoutUser,refreshAccessToken}
+const changePassword = asyncHandler(async (req,res)=> {
+    const {oldPassword, newPassword, confirmPassword} = req.body
+
+    if(!(newPassword == confirmPassword)){
+        throw ApiError(400, "confirm password error")
+    }
+
+    const user = await User.findById(req.user?._id)
+    const isPasswordCorrect = await user.isPasswordCorrect(oldPassword)
+
+    if(!isPasswordCorrect){
+        throw new ApiError(400,"invalid password")
+    }
+
+    user.password = newPassword;
+    await user.save({validateBeforeSave: flase})
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,{},"passo=word changed successfully"))
+
+})
+
+const getCurrentUser = asyncHandler(async(req,res) => {
+    return res
+    .status(200)
+    .json(200, req.user, "user fetched successfully")
+})
+
+const updateAccountDetails = asyncHandler(async(req,res) => {
+    const {fullName} = req.body
+
+    if(!fullName){
+        throw ApiError(400,"field value empty")
+    }
+
+    const user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {$set:
+            fullName
+        },
+        {new: true}// after updation also updates the user in 293rd line
+    ).select(-password)
+    return res
+.status(200)
+.json(new ApiResponse(200,{user},"details updated successfully"))
+});
+
+
+export {registerUser, loginUser, logoutUser,refreshAccessToken,changePassword,getCurrentUser}
