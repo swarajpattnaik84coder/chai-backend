@@ -1,7 +1,7 @@
 import {asyncHandler} from "../utils/asyncHandlers.js"
 import {ApiError} from "../utils/apiError.js"
 import {User} from "../models/user.model.js"
-import { uploadOnCloudinary } from "../utils/cloudinary.js"
+import { deleteFromCloudinary, uploadOnCloudinary } from "../utils/cloudinary.js"
 import { ApiResponse } from "../utils/ApiResponse.js"
 
 //access and refresh token multiple times generate karna padega, so ek method banalo
@@ -302,5 +302,106 @@ const updateAccountDetails = asyncHandler(async(req,res) => {
 .json(new ApiResponse(200,{user},"details updated successfully"))
 });
 
+const updateUserAvatar = asyncHandler(async(req,res) => {    
+    const user = req.user;
+    const avatarLocalPath = req.file?.path
 
-export {registerUser, loginUser, logoutUser,refreshAccessToken,changePassword,getCurrentUser}
+    if(!avatarLocalPath){
+        throw new ApiError(400,"avatar file reuired")
+    }
+
+    //todo: delete previous avatar
+
+const avatarURL = new URL(user.avatar);
+
+const parts = avatarURL.pathname.split("/upload/")[1].split("/");
+
+if (parts[0].startsWith("v") && /^v\d+$/.test(parts[0])) {
+    parts.shift();
+}
+
+const publicId = parts.join("/").replace(/\.[^/.]+$/, "");
+
+//console.log(publicId);
+    await deleteFromCloudinary(publicId)
+
+
+    //todo: update new avatar
+
+    const avatar =  await uploadOnCloudinary(avatarLocalPath)
+
+    if(!avatar.url){
+        throw ApiError(400,"error while uploading avatar")
+    }
+
+
+    user.avatar = avatar.url;
+    await user.save();
+
+     const safeUser = user.toObject();
+    delete safeUser.password;
+
+    return res
+    .status(200)
+    .json(new ApiResponse(200,safeUser,"avatar updated successfully"));
+
+});
+
+const updateUserCoverImage = asyncHandler(async(req, res) => {
+    const coverImageLocalPath = req.file?.path
+
+    if (!coverImageLocalPath) {
+        throw new ApiError(400, "Cover image file is missing")
+    }
+
+    //TODO: delete old image - assignment
+
+    const coverImageURL = new URL(user.coverImage);
+const parts = coverImageURL.pathname.split("/upload/")[1].split("/");
+if (parts[0].startsWith("v") && /^v\d+$/.test(parts[0])) {
+    parts.shift();
+}
+const publicId = parts.join("/").replace(/\.[^/.]+$/, "");
+//console.log(publicId);
+    await deleteFromCloudinary(publicId)
+
+    //todo: upload new cover image
+const user = await User.findById(req.user._id)
+
+
+
+    const coverImage = await uploadOnCloudinary(coverImageLocalPath)
+
+    if (!coverImage.url) {
+        throw new ApiError(400, "Error while uploading on avatar")
+        
+    }
+
+    user = await User.findByIdAndUpdate(
+        req.user?._id,
+        {
+            $set:{
+                coverImage: coverImage.url
+            }
+        },
+        {new: true}
+    ).select("-password")
+
+    return res
+    .status(200)
+    .json(
+        new ApiResponse(200, user, "Cover image updated successfully")
+    )
+})
+
+
+export {registerUser, 
+    loginUser, 
+    logoutUser,
+    refreshAccessToken,
+    changePassword,
+    getCurrentUser,
+    updateAccountDetails,
+    updateUserAvatar,
+    updateUserCoverImage
+}
