@@ -23,11 +23,11 @@ const videoSchema = new Schema({
         required: true
     },
     duration:{
-        type: String, // url from cloudynary
+        type: String,
         required: true
     },
     views:{
-        type: Number, // url from cloudynary
+        type: Number,
         required: true,
         default: 0
     },

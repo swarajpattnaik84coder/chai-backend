@@ -323,6 +323,7 @@ if (parts[0].startsWith("v") && /^v\d+$/.test(parts[0])) {
 const publicId = parts.join("/").replace(/\.[^/.]+$/, "");
 
 //console.log(publicId);
+//? create dnew utility for cloudinary deletion
     await deleteFromCloudinary(publicId)
 
 
@@ -394,6 +395,69 @@ const user = await User.findById(req.user._id)
     )
 })
 
+//* mongo aggregation starts from here 
+
+    const getChannelProfile = asyncHandler( async(req,res) => {
+        const {username} = req.params
+        if(!username?.trim()){
+            throw new ApiError(400,"username is missing")
+        }
+
+        const channel = await User.aggregate([
+            {
+                $match:{
+                    username: username?.lowercase()
+                }
+            },
+            {   //TODO: get subscriber count
+                $lookup:{
+                    from: "subscriptions",
+                    localField: "_id",
+                    foreignField: "channel",
+                    as:"subscribers"
+                }
+            },
+            {   //TODO: get count of channel subscribed to 
+                $lookup:{
+                    from: "subscriptions",
+                    localField:"id_",
+                    foreignField:"subscriber",
+                    as:"subscribedTo"
+                }
+            },
+            {
+                $addFields:{
+                    subscriberCount:{
+                        $size: "$subscribers"
+                    },
+                  channelsSubscribedToCount: {
+                    $size: "$subscribedTo"
+                },  
+                isSubscribed:{
+                    $cond:{
+                        if:{$in: [req.user?._id, "$subscribers.subscriber"]},
+                        then: true,
+                        else: false
+                    }
+                }
+                }
+            },
+            {
+                $project:{
+                    fullName: 1,
+                    username: 1,
+                    avatar: 1,
+                    coverImage: 1,
+                    email: 1,
+                    subscriberCount: 1,
+                    channelsSubscribedToCount: 1,
+                    isSubscribed: 1
+                }
+            }
+        ])
+
+    })
+
 
 export {registerUser, 
     loginUser, 
@@ -403,5 +467,6 @@ export {registerUser,
     getCurrentUser,
     updateAccountDetails,
     updateUserAvatar,
-    updateUserCoverImage
+    updateUserCoverImage,
+    getChannelProfile
 }
