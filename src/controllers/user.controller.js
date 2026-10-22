@@ -456,8 +456,67 @@ const user = await User.findById(req.user._id)
             }
         ])
 
+        if(!channel?.length){
+            throw new ApiError(400,"channel does not exist")
+        }
+
+        return res
+        .status(200)
+        .json(
+            new ApiResponse(200,channel[0],"channel retrived successfuly")
+        )
     })
 
+    //* sub pipline concept starts here
+
+    const getWatchHistory = asyncHandler(async(req,res) => {
+        const user = await User.aggregate([
+            {
+                $match: new mongoose.Types.ObjectId(req.user._id)
+            },
+            {//? foreignField belongs to form: collection
+                $lookup:{
+                    from:"videos",
+                    localField: "watchHistory",
+                    foreignField:  "_id", //_id is implicit id of videos given by mongo db
+                    as: "watchHistory",
+                    pipeline:[
+                        {
+                            $lookup: {
+                                from: "users",
+                                localField:"owner",
+                                foreignField: "_id",
+                                as:"owner",
+                                pipeline:[
+                                    {
+                                        $project:{
+                                            fullName: 1,
+                                            username: 1,
+                                            avatar: 1
+                                    }
+                                }
+                                ]
+
+                            }
+                        }
+                    ]
+                }
+            },
+            {
+                $addFields:{
+                    owner: {
+                        $first: "$owner"// retrives only the 0th index of owner array 
+                    }
+                }
+            }
+        ])
+
+        return res
+        .status(200)
+        .json(
+            new ApiResponse(200,user[0].getWatchHistory,"watch history fetched successfully")
+        )
+    })
 
 export {registerUser, 
     loginUser, 
@@ -468,5 +527,6 @@ export {registerUser,
     updateAccountDetails,
     updateUserAvatar,
     updateUserCoverImage,
-    getChannelProfile
+    getChannelProfile,
+    getWatchHistory
 }
