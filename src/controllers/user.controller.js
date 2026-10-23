@@ -395,7 +395,7 @@ const user = await User.findById(req.user._id)
     )
 })
 
-//* mongo aggregation starts from here 
+//* mongo aggregation concept starts from here 
 
     const getChannelProfile = asyncHandler( async(req,res) => {
         const {username} = req.params
